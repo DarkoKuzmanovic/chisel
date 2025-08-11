@@ -1,0 +1,30 @@
+# Core GUI Framework
+PyQt6>=6.6.0
+
+# Global hotkey support
+pynput>=1.7.6
+
+# HTTP requests
+httpx>=0.25.0
+requests>=2.31.0
+
+# System integration
+psutil>=5.9.0
+plyer>=2.1.0
+
+# Configuration and security
+pydantic>=2.5.0
+keyring>=24.3.0
+
+# Logging
+loguru>=0.7.0
+
+# Platform-specific dependencies
+pywin32>=306; sys_platform == "win32"
+PyObjC>=10.1; sys_platform == "darwin"
+
+# Clipboard operations
+pyperclip>=1.8.2
+
+# Async support
+asyncio-mqtt>=0.13.0
