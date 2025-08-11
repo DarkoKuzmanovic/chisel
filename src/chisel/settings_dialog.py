@@ -16,18 +16,19 @@ from typing import Optional, List
 import asyncio
 from loguru import logger
 
-from .settings import ChiselSettings, SettingsManager
-from .ai_client import GeminiClient, ModelInfo
+from .settings import ChiselSettings, SettingsManager, APIProvider
+from .ai_client import GeminiClient, OpenRouterClient, ModelInfo, create_ai_client
 
 
 class ModelFetchWorker(QThread):
-    """Worker thread to fetch models from Google API."""
+    """Worker thread to fetch models from any API provider."""
     
     models_fetched = pyqtSignal(list)  # List[ModelInfo]
     fetch_error = pyqtSignal(str)
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_provider: APIProvider, api_key: str):
         super().__init__()
+        self.api_provider = api_provider
         self.api_key = api_key
     
     def run(self):
@@ -36,9 +37,16 @@ class ModelFetchWorker(QThread):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             
-            models = loop.run_until_complete(
-                GeminiClient.fetch_models_static(self.api_key, timeout=10)
-            )
+            if self.api_provider == APIProvider.GOOGLE:
+                models = loop.run_until_complete(
+                    GeminiClient.fetch_models_static(self.api_key, timeout=10)
+                )
+            elif self.api_provider == APIProvider.OPENROUTER:
+                # Create temporary client to fetch models
+                client = OpenRouterClient(self.api_key, timeout=10)
+                models = loop.run_until_complete(client.fetch_available_models())
+            else:
+                raise ValueError(f"Unsupported provider: {self.api_provider}")
             
             self.models_fetched.emit(models)
             
@@ -114,21 +122,34 @@ class SettingsDialog(QDialog):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # API Configuration Group
-        api_group = QGroupBox("Google AI Configuration")
-        api_layout = QFormLayout(api_group)
+        # Provider Selection Group
+        provider_group = QGroupBox("API Provider")
+        provider_layout = QFormLayout(provider_group)
+        
+        # Provider selection
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItem("Google Gemini", APIProvider.GOOGLE.value)
+        self.provider_combo.addItem("OpenRouter", APIProvider.OPENROUTER.value)
+        self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
+        provider_layout.addRow("Provider:", self.provider_combo)
+        
+        layout.addWidget(provider_group)
+        
+        # API Configuration Group (Dynamic)
+        self.api_group = QGroupBox("API Configuration")
+        self.api_layout = QFormLayout(self.api_group)
         
         # API Key
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key_edit.setPlaceholderText("Enter your Google AI API key")
+        self.api_key_edit.setPlaceholderText("Enter your API key")
         self.api_key_edit.textChanged.connect(self.on_api_key_changed)
-        api_layout.addRow("API Key:", self.api_key_edit)
+        self.api_layout.addRow("API Key:", self.api_key_edit)
         
         # Show/Hide API Key
         self.show_key_checkbox = QCheckBox("Show API key")
         self.show_key_checkbox.toggled.connect(self.toggle_api_key_visibility)
-        api_layout.addRow("", self.show_key_checkbox)
+        self.api_layout.addRow("", self.show_key_checkbox)
         
         # AI Model Selection
         model_layout = QHBoxLayout()
@@ -149,12 +170,13 @@ class SettingsDialog(QDialog):
         self.model_loading_label.hide()
         model_layout.addWidget(self.model_loading_label)
         
-        api_layout.addRow("AI Model:", model_layout)
+        self.api_layout.addRow("AI Model:", model_layout)
+        
+        # Add the API configuration group to layout
+        layout.addWidget(self.api_group)
         
         # Initialize with fallback models (this will be overridden by load_current_settings)
         self.populate_fallback_models()
-        
-        layout.addWidget(api_group)
         
         # AI Parameters Group
         params_group = QGroupBox("AI Generation Parameters")
@@ -342,11 +364,22 @@ class SettingsDialog(QDialog):
     
     def load_current_settings(self) -> None:
         """Load current settings into the UI."""
-        # API Configuration
-        if self.current_settings.api_key:
-            self.api_key_edit.setText(self.current_settings.api_key)
+        # Set provider selection
+        for i in range(self.provider_combo.count()):
+            if self.provider_combo.itemData(i) == self.current_settings.api_provider.value:
+                self.provider_combo.setCurrentIndex(i)
+                break
         
-        self.set_selected_model(self.current_settings.ai_model)
+        # Trigger provider change to update UI
+        self.on_provider_changed()
+        
+        # API Configuration - load current provider's API key and model
+        current_api_key = self.current_settings.current_api_key
+        if current_api_key:
+            self.api_key_edit.setText(current_api_key)
+        
+        current_model = self.current_settings.current_model
+        self.set_selected_model(current_model)
         
         self.prompt_edit.setPlainText(self.current_settings.current_prompt)
         
@@ -365,25 +398,41 @@ class SettingsDialog(QDialog):
     
     def get_settings_from_ui(self) -> ChiselSettings:
         """Get settings from UI controls."""
-        return ChiselSettings(
-            # API Configuration
-            api_key=self.api_key_edit.text().strip() or None,
-            ai_model=self.get_selected_model_name(),
-            current_prompt=self.prompt_edit.toPlainText().strip(),
+        # Start with current settings to preserve provider-specific data
+        new_settings = ChiselSettings(
+            # Provider configuration
+            api_provider=self.get_current_provider(),
             
-            # AI Parameters
+            # Copy all existing provider-specific settings
+            google_api_key=self.current_settings.google_api_key,
+            google_model=self.current_settings.google_model,
+            openrouter_api_key=self.current_settings.openrouter_api_key,
+            openrouter_model=self.current_settings.openrouter_model,
+            
+            # Legacy fields for compatibility
+            api_key=self.current_settings.api_key,
+            ai_model=self.current_settings.ai_model,
+            
+            # Common settings
+            current_prompt=self.prompt_edit.toPlainText().strip(),
             temperature=self.temperature_slider.value() / 100.0,
             top_p=self.top_p_slider.value() / 100.0,
-            
-            # Behavior
             global_hotkey=self.hotkey_edit.text().strip(),
             show_notifications=self.notifications_checkbox.isChecked(),
             auto_start=self.auto_start_checkbox.isChecked(),
-            
-            # Advanced
             api_timeout=self.timeout_spin.value(),
             max_text_length=self.max_length_spin.value()
         )
+        
+        # Update current provider's API key and model
+        api_key = self.api_key_edit.text().strip() or None
+        model = self.get_selected_model_name()
+        
+        if api_key:
+            new_settings.set_current_api_key(api_key)
+        new_settings.set_current_model(model)
+        
+        return new_settings
     
     def save_settings(self) -> None:
         """Save settings and close dialog."""
@@ -391,11 +440,12 @@ class SettingsDialog(QDialog):
             new_settings = self.get_settings_from_ui()
             
             # Validate settings
-            if not new_settings.api_key:
+            if not new_settings.current_api_key:
+                provider_name = "Google AI" if new_settings.api_provider == APIProvider.GOOGLE else "OpenRouter"
                 QMessageBox.warning(
                     self, 
                     "Missing API Key", 
-                    "Please enter your Google AI API key."
+                    f"Please enter your {provider_name} API key."
                 )
                 return
             
@@ -465,10 +515,60 @@ class SettingsDialog(QDialog):
             logger.info("Settings reset to defaults")
     
     def populate_fallback_models(self) -> None:
-        """Populate combo box with fallback models."""
-        fallback_models = GeminiClient._get_fallback_models_static()
+        """Populate combo box with fallback models for current provider."""
+        provider = self.get_current_provider()
+        if provider == APIProvider.GOOGLE:
+            fallback_models = GeminiClient._get_fallback_models_static()
+        elif provider == APIProvider.OPENROUTER:
+            # Create temporary client to get fallback models
+            temp_client = OpenRouterClient("dummy", 10)
+            fallback_models = temp_client._get_fallback_models()
+        else:
+            fallback_models = []
+        
         self.available_models = fallback_models
         self.update_model_combo()
+    
+    def get_current_provider(self) -> APIProvider:
+        """Get currently selected provider."""
+        provider_data = self.provider_combo.currentData()
+        if provider_data:
+            return APIProvider(provider_data)
+        return APIProvider.GOOGLE
+    
+    def on_provider_changed(self) -> None:
+        """Handle provider selection changes."""
+        provider = self.get_current_provider()
+        logger.info(f"Provider changed to: {provider.value}")
+        
+        # Update API key placeholder and group title
+        if provider == APIProvider.GOOGLE:
+            self.api_group.setTitle("Google AI Configuration")
+            self.api_key_edit.setPlaceholderText("Enter your Google AI API key")
+        elif provider == APIProvider.OPENROUTER:
+            self.api_group.setTitle("OpenRouter Configuration")
+            self.api_key_edit.setPlaceholderText("Enter your OpenRouter API key")
+        
+        # Load provider-specific API key if available
+        provider = self.get_current_provider()
+        if provider == APIProvider.GOOGLE and self.current_settings.google_api_key:
+            self.api_key_edit.setText(self.current_settings.google_api_key)
+        elif provider == APIProvider.OPENROUTER and self.current_settings.openrouter_api_key:
+            self.api_key_edit.setText(self.current_settings.openrouter_api_key)
+        else:
+            self.api_key_edit.clear()
+        
+        # Clear models and load appropriate ones
+        self.model_combo.clear()
+        self.populate_fallback_models()
+        
+        # Enable/disable refresh button based on API key availability
+        has_key = bool(self.api_key_edit.text().strip())
+        self.refresh_models_btn.setEnabled(has_key)
+        
+        # Auto-fetch models if we have an API key
+        if has_key:
+            self.fetch_models()
     
     def update_model_combo(self) -> None:
         """Update the model combo box with available models."""
@@ -502,19 +602,21 @@ class SettingsDialog(QDialog):
             logger.debug(f"Added custom model selection: {current_selection}")
     
     def fetch_models(self) -> None:
-        """Start fetching models from API."""
+        """Start fetching models from current provider's API."""
         api_key = self.api_key_edit.text().strip()
         if not api_key:
             logger.warning("No API key available for model fetching")
             return
+        
+        provider = self.get_current_provider()
         
         # Stop any existing worker
         if self.model_fetch_worker and self.model_fetch_worker.isRunning():
             self.model_fetch_worker.terminate()
             self.model_fetch_worker.wait()
         
-        # Start new worker
-        self.model_fetch_worker = ModelFetchWorker(api_key)
+        # Start new worker with current provider
+        self.model_fetch_worker = ModelFetchWorker(provider, api_key)
         self.model_fetch_worker.models_fetched.connect(self.on_models_fetched)
         self.model_fetch_worker.fetch_error.connect(self.on_model_fetch_error)
         

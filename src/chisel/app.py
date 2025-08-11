@@ -17,7 +17,7 @@ from .settings_dialog import SettingsDialog
 from .tray import SystemTrayIcon
 from .hotkey import GlobalHotkeyManager
 from .processor import TextProcessor
-from .ai_client import GeminiClient
+from .ai_client import AIClient, create_ai_client
 
 
 class ChiselApp(QApplication):
@@ -36,7 +36,7 @@ class ChiselApp(QApplication):
         self.tray_icon: Optional[SystemTrayIcon] = None
         self.hotkey_manager: Optional[GlobalHotkeyManager] = None
         self.text_processor: Optional[TextProcessor] = None
-        self.ai_client: Optional[GeminiClient] = None
+        self.ai_client: Optional[AIClient] = None
         
         # Application state
         self.is_ready = False
@@ -57,12 +57,17 @@ class ChiselApp(QApplication):
             self.settings = self.settings_manager.load_settings()
             
             # Initialize AI client
-            if self.settings.api_key:
-                self.ai_client = GeminiClient(
-                    self.settings.api_key, 
-                    self.settings.api_timeout,
-                    self.settings.ai_model
+            if self.settings.current_api_key:
+                self.ai_client = create_ai_client(
+                    api_provider=self.settings.api_provider.value,
+                    api_key=self.settings.current_api_key,
+                    model=self.settings.current_model,
+                    timeout=self.settings.api_timeout
                 )
+                if self.ai_client:
+                    logger.info(f"AI client initialized: {self.settings.api_provider.value} with {self.settings.current_model}")
+                else:
+                    logger.error(f"Failed to create AI client for provider: {self.settings.api_provider.value}")
             else:
                 logger.warning("No API key configured")
             
@@ -163,13 +168,23 @@ class ChiselApp(QApplication):
         # Update current settings
         self.settings = new_settings
         
-        # Reinitialize AI client if API key changed
-        if new_settings.api_key:
-            self.ai_client = GeminiClient(
-                new_settings.api_key, 
-                new_settings.api_timeout,
-                new_settings.ai_model
+        # Reinitialize AI client if API key or provider changed
+        if new_settings.current_api_key:
+            self.ai_client = create_ai_client(
+                api_provider=new_settings.api_provider.value,
+                api_key=new_settings.current_api_key,
+                model=new_settings.current_model,
+                timeout=new_settings.api_timeout
             )
+            if self.ai_client:
+                logger.info(f"AI client updated: {new_settings.api_provider.value} with {new_settings.current_model}")
+            else:
+                logger.error(f"Failed to create AI client for provider: {new_settings.api_provider.value}")
+                if self.tray_icon:
+                    self.tray_icon.show_message(
+                        "Chisel Error", 
+                        f"Failed to initialize {new_settings.api_provider.value} client"
+                    )
             
             # Update text processor
             if self.text_processor:

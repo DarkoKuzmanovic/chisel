@@ -8,18 +8,48 @@ import json
 import keyring
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
+from enum import Enum
 from loguru import logger
+
+
+class APIProvider(str, Enum):
+    """Supported API providers."""
+    GOOGLE = "google"
+    OPENROUTER = "openrouter"
 
 
 class ChiselSettings(BaseModel):
     """Application settings with validation."""
     
-    # API Configuration
-    api_key: Optional[str] = None
-    ai_model: str = Field(
-        default="gemini-1.5-pro-latest",
+    # API Provider Configuration
+    api_provider: APIProvider = Field(
+        default=APIProvider.GOOGLE,
+        description="AI API provider to use"
+    )
+    
+    # Google API Configuration
+    google_api_key: Optional[str] = None
+    google_model: str = Field(
+        default="gemini-2.5-pro",
         description="Google AI model to use"
+    )
+    
+    # OpenRouter API Configuration  
+    openrouter_api_key: Optional[str] = None
+    openrouter_model: str = Field(
+        default="openai/gpt-oss-20b:free",
+        description="OpenRouter model to use"
+    )
+    
+    # Legacy field for backward compatibility
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Legacy API key field (mapped to current provider)"
+    )
+    ai_model: Optional[str] = Field(
+        default=None,
+        description="Legacy model field (mapped to current provider)"
     )
     current_prompt: str = Field(
         default="Rephrase this text to be more professional and clear:",
@@ -57,6 +87,39 @@ class ChiselSettings(BaseModel):
     class Config:
         """Pydantic configuration."""
         validate_assignment = True
+    
+    # Helper properties for current provider
+    @property
+    def current_api_key(self) -> Optional[str]:
+        """Get API key for current provider."""
+        if self.api_provider == APIProvider.GOOGLE:
+            return self.google_api_key or self.api_key  # Fallback to legacy
+        elif self.api_provider == APIProvider.OPENROUTER:
+            return self.openrouter_api_key
+        return None
+    
+    @property 
+    def current_model(self) -> str:
+        """Get model for current provider."""
+        if self.api_provider == APIProvider.GOOGLE:
+            return self.google_model or self.ai_model or "gemini-2.5-pro"
+        elif self.api_provider == APIProvider.OPENROUTER:
+            return self.openrouter_model
+        return "gemini-2.5-pro"
+    
+    def set_current_api_key(self, api_key: str) -> None:
+        """Set API key for current provider."""
+        if self.api_provider == APIProvider.GOOGLE:
+            self.google_api_key = api_key
+        elif self.api_provider == APIProvider.OPENROUTER:
+            self.openrouter_api_key = api_key
+    
+    def set_current_model(self, model: str) -> None:
+        """Set model for current provider."""
+        if self.api_provider == APIProvider.GOOGLE:
+            self.google_model = model
+        elif self.api_provider == APIProvider.OPENROUTER:
+            self.openrouter_model = model
 
 
 class SettingsManager:
@@ -86,31 +149,57 @@ class SettingsManager:
         else:
             logger.info("Config file not found, using default settings")
         
-        # Load API key from secure storage
+        # Load API keys from secure storage
         try:
-            api_key = keyring.get_password(self.app_name, "api_key")
-            if api_key:
-                settings.api_key = api_key
-                logger.info("API key loaded from keyring")
+            # Load Google API key (check both new and legacy keys)
+            google_key = keyring.get_password(self.app_name, "google_api_key")
+            if google_key:
+                settings.google_api_key = google_key
+                logger.info("Google API key loaded from keyring")
+            else:
+                # Fallback to legacy api_key for backward compatibility
+                legacy_key = keyring.get_password(self.app_name, "api_key")
+                if legacy_key:
+                    settings.google_api_key = legacy_key
+                    settings.api_key = legacy_key  # Keep for compatibility
+                    logger.info("Legacy API key loaded from keyring")
+            
+            # Load OpenRouter API key
+            openrouter_key = keyring.get_password(self.app_name, "openrouter_api_key")
+            if openrouter_key:
+                settings.openrouter_api_key = openrouter_key
+                logger.info("OpenRouter API key loaded from keyring")
+                
         except Exception as e:
-            logger.error(f"Error loading API key from keyring: {e}")
+            logger.error(f"Error loading API keys from keyring: {e}")
         
         return settings
     
     def save_settings(self, settings: ChiselSettings) -> bool:
         """Save settings to file and keyring."""
         try:
-            # Save API key securely
-            if settings.api_key:
-                try:
+            # Save API keys securely
+            try:
+                # Save Google API key
+                if settings.google_api_key:
+                    keyring.set_password(self.app_name, "google_api_key", settings.google_api_key)
+                    logger.info("Google API key saved to keyring")
+                
+                # Save OpenRouter API key
+                if settings.openrouter_api_key:
+                    keyring.set_password(self.app_name, "openrouter_api_key", settings.openrouter_api_key)
+                    logger.info("OpenRouter API key saved to keyring")
+                    
+                # Save legacy api_key for backward compatibility
+                if settings.api_key:
                     keyring.set_password(self.app_name, "api_key", settings.api_key)
-                    logger.info("API key saved to keyring")
-                except Exception as e:
-                    logger.error(f"Error saving API key to keyring: {e}")
-                    return False
+                    
+            except Exception as e:
+                logger.error(f"Error saving API keys to keyring: {e}")
+                return False
             
-            # Save other settings to file
-            settings_dict = settings.dict(exclude={"api_key"})
+            # Save other settings to file (exclude all API keys)
+            settings_dict = settings.dict(exclude={"api_key", "google_api_key", "openrouter_api_key"})
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(settings_dict, f, indent=2, ensure_ascii=False)
             

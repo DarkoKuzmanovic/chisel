@@ -10,7 +10,7 @@ from typing import Optional
 from pynput import keyboard
 from loguru import logger
 
-from .ai_client import GeminiClient
+from .ai_client import AIClient, create_ai_client
 from .settings import ChiselSettings
 from .clipboard import ClipboardManager
 
@@ -18,7 +18,7 @@ from .clipboard import ClipboardManager
 class TextProcessor:
     """Manages the core text processing workflow."""
     
-    def __init__(self, ai_client: Optional[GeminiClient], settings: ChiselSettings):
+    def __init__(self, ai_client: Optional[AIClient], settings: ChiselSettings):
         self.ai_client = ai_client
         self.settings = settings
         self.keyboard = keyboard.Controller()
