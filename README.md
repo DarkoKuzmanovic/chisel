@@ -1,11 +1,12 @@
 # Chisel - AI-Powered Text Rephrasing Tool
 
-Chisel is a desktop background utility that enables AI-powered text rephrasing with global hotkey support. Select any text and press `Ctrl+Shift+R` to instantly rephrase it using Google's Gemini AI.
+Chisel is a desktop background utility that enables AI-powered text rephrasing with global hotkey support. Select any text and press `Ctrl+Shift+R` to instantly rephrase it using your chosen AI provider.
 
 ## Features
 
 - **Global Hotkey**: Works across all applications with `Ctrl+Shift+R`
-- **AI-Powered**: Uses Google Gemini API for intelligent text rephrasing
+- **Multiple AI Providers**: Supports Google Gemini and OpenRouter
+- **Customizable Models**: Choose from a wide range of AI models
 - **Background Operation**: Runs invisibly in system tray
 - **Cross-Platform**: Windows, macOS, and Linux support
 - **Secure**: API keys stored in system keyring
@@ -37,10 +38,9 @@ Chisel is a desktop background utility that enables AI-powered text rephrasing w
 
 ### Configuration
 
-1. **Get a Google Gemini API key**
-   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a new API key
-   - Copy the key for configuration
+1. **Get an API key**
+   - For **Google Gemini**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - For **OpenRouter**: Visit [OpenRouter.ai](https://openrouter.ai/keys)
 
 2. **Run Chisel**
    ```bash
@@ -50,7 +50,9 @@ Chisel is a desktop background utility that enables AI-powered text rephrasing w
 3. **Configure the API key**
    - Right-click the system tray icon
    - Select "Settings..."
-   - Enter your Gemini API key
+   - Choose your AI provider (Google Gemini or OpenRouter)
+   - Enter your API key
+   - Select your preferred AI model
    - Customize the rephrasing prompt if desired
 
 ### Usage
@@ -90,10 +92,10 @@ pyinstaller --onefile --windowed --icon=resources/icons/chisel.ico src/chisel/__
 
 ## Architecture
 
-- **app.py** - Main application controller
-- **hotkey.py** - Cross-platform global hotkey management  
+- **app.py** - Main application controller, orchestrates all components
+- **hotkey.py** - Cross-platform global hotkey management
 - **processor.py** - Text capture and processing workflow
-- **ai_client.py** - Google Gemini API integration
+- **ai_client.py** - Integration with AI providers (Google Gemini, OpenRouter)
 - **settings.py** - Configuration management with secure storage
 - **tray.py** - System tray interface
 - **clipboard.py** - Safe clipboard operations
@@ -104,7 +106,7 @@ pyinstaller --onefile --windowed --icon=resources/icons/chisel.ico src/chisel/__
 - May require administrator privileges for some applications
 - Includes Windows-specific optimizations
 
-### macOS  
+### macOS
 - Requires accessibility permissions for global hotkeys
 - Install with: `pip install PyObjC`
 
@@ -116,7 +118,7 @@ pyinstaller --onefile --windowed --icon=resources/icons/chisel.ico src/chisel/__
 
 Settings are stored in:
 - **Windows**: `%APPDATA%\Chisel\settings.json`
-- **macOS**: `~/Library/Application Support/Chisel/settings.json`  
+- **macOS**: `~/Library/Application Support/Chisel/settings.json`
 - **Linux**: `~/.config/chisel/settings.json`
 
 API keys are securely stored in the system keyring.
