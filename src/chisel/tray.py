@@ -1,16 +1,17 @@
 """
 System tray interface for Chisel application.
 
-Provides background operation, settings access, and status indication.
+Provides background operation, settings access, and status indication with themed icons.
 """
 
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication, QStyle
 from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from pathlib import Path
 from loguru import logger
 
 from .about_window import AboutWindow
+from .theme_utils import get_tray_icon, ThemeDetector
 
 
 class SystemTrayIcon(QSystemTrayIcon):
@@ -26,6 +27,12 @@ class SystemTrayIcon(QSystemTrayIcon):
         # About window instance
         self.about_window = None
 
+                # Set up theme monitoring timer
+        self.theme_timer = QTimer()
+        self.theme_timer.timeout.connect(self.check_theme_change)
+        self.theme_timer.start(30000)  # Check every 30 seconds
+        self.current_dark_theme = None
+
         # Set up tray icon
         self.setup_icon()
 
@@ -35,23 +42,28 @@ class SystemTrayIcon(QSystemTrayIcon):
         # Connect signals
         self.activated.connect(self.on_tray_activated)
 
-        logger.info("System tray icon initialized")
+        logger.info("System tray icon initialized with theme detection")
 
     def setup_icon(self) -> None:
-        """Set up the tray icon."""
-        # Try to load custom icon, fallback to default
-        icon_path = Path("resources/icons/chisel_tray.png")
+        """Set up the tray icon with theme-appropriate coloring."""
+        try:
+            # Use themed SVG icon
+            icon = get_tray_icon()
+            self.setIcon(icon)
 
-        if icon_path.exists():
-            self.setIcon(QIcon(str(icon_path)))
-        else:
-            # Use default system icon
+            # Store current theme state
+            self.current_dark_theme = ThemeDetector.is_dark_theme()
+
+            logger.info(f"Tray icon set with {'dark' if self.current_dark_theme else 'light'} theme")
+
+        except Exception as e:
+            logger.error(f"Error setting themed tray icon: {e}")
+            # Fallback to system icon
             app = QApplication.instance()
             if app:
                 style = app.style()
                 self.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
             else:
-                # Fallback to empty icon
                 self.setIcon(QIcon())
 
         self.setToolTip("Chisel - AI Text Rephrasing")
@@ -126,3 +138,27 @@ class SystemTrayIcon(QSystemTrayIcon):
         self.about_window.raise_()
         self.about_window.activateWindow()
         logger.info("About window shown")
+
+    def check_theme_change(self) -> None:
+        """Check if Windows theme has changed and update icon if necessary."""
+        try:
+            current_dark_theme = ThemeDetector.is_dark_theme()
+
+            if self.current_dark_theme != current_dark_theme:
+                logger.info(f"Theme change detected: {current_dark_theme}")
+                self.current_dark_theme = current_dark_theme
+
+                # Update the tray icon
+                icon = get_tray_icon()
+                self.setIcon(icon)
+
+                logger.info(f"Tray icon updated for {'dark' if current_dark_theme else 'light'} theme")
+
+        except Exception as e:
+            logger.error(f"Error checking theme change: {e}")
+
+    def cleanup(self) -> None:
+        """Clean up resources when tray is destroyed."""
+        if self.theme_timer:
+            self.theme_timer.stop()
+        logger.info("System tray cleaned up")
