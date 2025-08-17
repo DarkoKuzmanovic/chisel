@@ -19,6 +19,7 @@ from loguru import logger
 
 from .settings import ChiselSettings, SettingsManager, APIProvider
 from .ai_client import GeminiClient, OpenRouterClient, ModelInfo, create_ai_client
+from .styles import apply_main_stylesheet
 
 
 class ModelFetchWorker(QThread):
@@ -72,63 +73,10 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("Chisel Settings")
         self.setModal(True)
         self.resize(580, 700)
-
-        # Apply global scrollbar styling to the entire dialog
-        self.setStyleSheet("""
-            /* Global scrollbar styling for the entire dialog */
-            QScrollBar:vertical {
-                background-color: #f8f9fa;
-                width: 12px;
-                border-radius: 6px;
-                border: none;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #ced4da;
-                border-radius: 6px;
-                margin: 2px;
-                min-height: 20px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #adb5bd;
-            }
-            QScrollBar::handle:vertical:pressed {
-                background-color: #6c757d;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                border: none;
-                background: none;
-                height: 0px;
-            }
-            QScrollBar:horizontal {
-                background-color: #f8f9fa;
-                height: 12px;
-                border-radius: 6px;
-                border: none;
-            }
-            QScrollBar::handle:horizontal {
-                background-color: #ced4da;
-                border-radius: 6px;
-                margin: 2px;
-                min-width: 20px;
-            }
-            QScrollBar::handle:horizontal:hover {
-                background-color: #adb5bd;
-            }
-            QScrollBar::handle:horizontal:pressed {
-                background-color: #6c757d;
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                border: none;
-                background: none;
-                width: 0px;
-            }
-            /* Ensure form labels are visible */
-            QFormLayout QLabel {
-                color: #495057;
-                font-size: 14px;
-                font-weight: 500;
-            }
-        """)
+        self.setObjectName("SettingsDialog")
+        
+        # Apply external stylesheet
+        apply_main_stylesheet(self)
 
         self.setup_ui()
         self.load_current_settings()
@@ -148,81 +96,30 @@ class SettingsDialog(QDialog):
 
         # Header section
         header = QFrame()
-        header.setStyleSheet("""
-            QFrame {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #667eea, stop:1 #764ba2);
-                border: none;
-            }
-        """)
+        header.setObjectName("SettingsHeader")
         header_layout = QVBoxLayout(header)
         header_layout.setContentsMargins(32, 24, 32, 24)
         header_layout.setSpacing(8)
 
         # Title and description
         title_label = QLabel("Settings")
-        title_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 28px;
-                font-weight: 700;
-                background: transparent;
-            }
-        """)
+        title_label.setObjectName("SettingsTitle")
 
         subtitle_label = QLabel("Configure your Chisel experience")
-        subtitle_label.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 0.9);
-                font-size: 16px;
-                font-weight: 400;
-                background: transparent;
-            }
-        """)
+        subtitle_label.setObjectName("SettingsSubtitle")
 
         header_layout.addWidget(title_label)
         header_layout.addWidget(subtitle_label)
 
         # Content area
         content_frame = QFrame()
-        content_frame.setStyleSheet("""
-            QFrame {
-                background-color: #f8f9fa;
-                border: none;
-            }
-        """)
+        content_frame.setObjectName("SettingsContent")
         content_layout = QVBoxLayout(content_frame)
         content_layout.setContentsMargins(32, 24, 32, 0)
 
         # Tab widget with modern styling
         self.tab_widget = QTabWidget()
-        self.tab_widget.setStyleSheet("""
-            QTabWidget::pane {
-                border: none;
-                background: white;
-                border-radius: 12px;
-                margin-top: 8px;
-            }
-            QTabBar::tab {
-                background: transparent;
-                color: #6c757d;
-                border: none;
-                padding: 12px 24px;
-                margin-right: 4px;
-                font-size: 14px;
-                font-weight: 500;
-                border-radius: 8px 8px 0px 0px;
-            }
-            QTabBar::tab:selected {
-                background: white;
-                color: #495057;
-                border-bottom: 3px solid #667eea;
-            }
-            QTabBar::tab:hover:!selected {
-                background: rgba(255, 255, 255, 0.5);
-                color: #495057;
-            }
-        """)
+        self.tab_widget.setObjectName("SettingsTabWidget")
 
         # Create tabs
         self.create_api_tab()
@@ -233,12 +130,7 @@ class SettingsDialog(QDialog):
 
         # Footer with action buttons
         footer = QFrame()
-        footer.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-top: 1px solid #dee2e6;
-            }
-        """)
+        footer.setObjectName("SettingsFooter")
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(32, 20, 32, 20)
         footer_layout.setSpacing(12)
@@ -246,23 +138,7 @@ class SettingsDialog(QDialog):
         # Test Connection button
         self.test_button = QPushButton("Test Connection")
         self.test_button.clicked.connect(self.test_api_connection)
-        self.test_button.setStyleSheet("""
-            QPushButton {
-                background-color: #28a745;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #218838;
-            }
-            QPushButton:pressed {
-                background-color: #1e7e34;
-            }
-        """)
+        self.test_button.setObjectName("TestButton")
 
         footer_layout.addWidget(self.test_button)
         footer_layout.addStretch()
@@ -270,44 +146,12 @@ class SettingsDialog(QDialog):
         # Cancel and Save buttons
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
-        self.cancel_button.setStyleSheet("""
-            QPushButton {
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #5a6268;
-            }
-            QPushButton:pressed {
-                background-color: #545b62;
-            }
-        """)
+        self.cancel_button.setObjectName("CancelButton")
 
         self.save_button = QPushButton("Save Changes")
         self.save_button.clicked.connect(self.save_settings)
         self.save_button.setDefault(True)
-        self.save_button.setStyleSheet("""
-            QPushButton {
-                background-color: #667eea;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #5a6fd8;
-            }
-            QPushButton:pressed {
-                background-color: #4c63d2;
-            }
-        """)
+        self.save_button.setObjectName("SaveButton")
 
         footer_layout.addWidget(self.cancel_button)
         footer_layout.addWidget(self.save_button)
@@ -320,11 +164,7 @@ class SettingsDialog(QDialog):
     def create_api_tab(self) -> None:
         """Create the API configuration tab."""
         tab = QWidget()
-        tab.setStyleSheet("""
-            QWidget {
-                background: white;
-            }
-        """)
+        tab.setObjectName("SettingsTab")
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 24, 32, 24)
         layout.setSpacing(24)
@@ -375,25 +215,12 @@ class SettingsDialog(QDialog):
         self.refresh_models_btn.setMaximumWidth(36)
         self.refresh_models_btn.setToolTip("Refresh available models")
         self.refresh_models_btn.clicked.connect(self.refresh_models)
-        self.refresh_models_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f8f9fa;
-                color: #495057;
-                border: 1px solid #ced4da;
-                border-radius: 6px;
-                padding: 8px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #e9ecef;
-                border-color: #adb5bd;
-            }
-        """)
+        self.refresh_models_btn.setObjectName("RefreshButton")
         model_layout.addWidget(self.refresh_models_btn)
 
         # Model loading indicator
         self.model_loading_label = QLabel("Loading models...")
-        self.model_loading_label.setStyleSheet("color: #6c757d; font-size: 12px;")
+        self.model_loading_label.setObjectName("LoadingLabel")
         self.model_loading_label.hide()
         model_layout.addWidget(self.model_loading_label)
 
@@ -419,7 +246,7 @@ class SettingsDialog(QDialog):
 
         self.temperature_label = QLabel("0.70")
         self.temperature_label.setMinimumWidth(40)
-        self.temperature_label.setStyleSheet("color: #495057; font-weight: 500;")
+        self.temperature_label.setObjectName("SliderLabel")
 
         temp_layout.addWidget(self.temperature_slider)
         temp_layout.addWidget(self.temperature_label)
@@ -436,7 +263,7 @@ class SettingsDialog(QDialog):
 
         self.top_p_label = QLabel("0.80")
         self.top_p_label.setMinimumWidth(40)
-        self.top_p_label.setStyleSheet("color: #495057; font-weight: 500;")
+        self.top_p_label.setObjectName("SliderLabel")
 
         top_p_layout.addWidget(self.top_p_slider)
         top_p_layout.addWidget(self.top_p_label)
@@ -449,7 +276,7 @@ class SettingsDialog(QDialog):
             "Top-P controls diversity of word selection."
         )
         help_label.setWordWrap(True)
-        help_label.setStyleSheet("color: #6c757d; font-size: 12px; margin-top: 8px;")
+        help_label.setObjectName("HelpLabel")
         self.add_form_row(params_layout, "", help_label)
 
         layout.addWidget(params_group)
@@ -476,19 +303,7 @@ class SettingsDialog(QDialog):
         ]:
             btn = QPushButton(text)
             btn.clicked.connect(lambda checked, p=prompt: self.set_prompt_preset(p))
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #f8f9fa;
-                    color: #495057;
-                    border: 1px solid #ced4da;
-                    border-radius: 6px;
-                    padding: 6px 12px;
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #e9ecef;
-                }
-            """)
+            btn.setObjectName("PresetButton")
             preset_layout.addWidget(btn)
 
         preset_layout.addStretch()
@@ -502,7 +317,7 @@ class SettingsDialog(QDialog):
     def create_behavior_tab(self) -> None:
         """Create the behavior configuration tab."""
         tab = QWidget()
-        tab.setStyleSheet("QWidget { background: white; }")
+        tab.setObjectName("BehaviorTab")
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 24, 32, 24)
         layout.setSpacing(24)
@@ -522,7 +337,7 @@ class SettingsDialog(QDialog):
             "Example: <ctrl>+<shift>+r"
         )
         hotkey_help.setWordWrap(True)
-        hotkey_help.setStyleSheet("color: #6c757d; font-size: 12px; margin-top: 8px;")
+        hotkey_help.setObjectName("HotkeyHelp")
         self.add_form_row(hotkey_layout, "", hotkey_help)
 
         layout.addWidget(hotkey_group)
@@ -555,7 +370,7 @@ class SettingsDialog(QDialog):
     def create_advanced_tab(self) -> None:
         """Create the advanced configuration tab."""
         tab = QWidget()
-        tab.setStyleSheet("QWidget { background: white; }")
+        tab.setObjectName("AdvancedTab")
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 24, 32, 24)
         layout.setSpacing(24)
@@ -588,23 +403,7 @@ class SettingsDialog(QDialog):
 
         reset_btn = QPushButton("Reset All Settings")
         reset_btn.clicked.connect(self.reset_settings)
-        reset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #dc3545;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 16px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #c82333;
-            }
-            QPushButton:pressed {
-                background-color: #bd2130;
-            }
-        """)
+        reset_btn.setObjectName("ResetButton")
         debug_layout.addWidget(reset_btn)
 
         layout.addWidget(debug_group)
@@ -615,295 +414,29 @@ class SettingsDialog(QDialog):
     def create_styled_group(self, title: str) -> QGroupBox:
         """Create a styled group box."""
         group = QGroupBox(title)
-        group.setStyleSheet("""
-            QGroupBox {
-                font-size: 16px;
-                font-weight: 600;
-                color: #495057;
-                border: 1px solid #e9ecef;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 16px;
-                background: #f8f9fa;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 16px;
-                padding: 0 8px 0 8px;
-                background: #f8f9fa;
-                color: #495057;
-            }
-            /* Style form labels within group boxes */
-            QGroupBox QLabel {
-                color: #495057;
-                font-size: 14px;
-                font-weight: 500;
-                background: transparent;
-            }
-            /* Global scrollbar styling */
-            QScrollBar:vertical {
-                background-color: #f8f9fa;
-                width: 12px;
-                border-radius: 6px;
-                border: none;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #ced4da;
-                border-radius: 6px;
-                margin: 2px;
-                min-height: 20px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #adb5bd;
-            }
-            QScrollBar::handle:vertical:pressed {
-                background-color: #6c757d;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                border: none;
-                background: none;
-            }
-            QScrollBar:horizontal {
-                background-color: #f8f9fa;
-                height: 12px;
-                border-radius: 6px;
-                border: none;
-            }
-            QScrollBar::handle:horizontal {
-                background-color: #ced4da;
-                border-radius: 6px;
-                margin: 2px;
-                min-width: 20px;
-            }
-            QScrollBar::handle:horizontal:hover {
-                background-color: #adb5bd;
-            }
-            QScrollBar::handle:horizontal:pressed {
-                background-color: #6c757d;
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                border: none;
-                background: none;
-            }
-        """)
+        group.setObjectName("SettingsGroup")
         return group
 
     def add_form_row(self, layout: QFormLayout, label_text: str, widget) -> None:
         """Add a properly styled form row with label."""
         if label_text:
             label = QLabel(label_text)
-            label.setStyleSheet("""
-                QLabel {
-                    color: #495057;
-                    font-size: 14px;
-                    font-weight: 500;
-                    background: transparent;
-                }
-            """)
+            label.setObjectName("FormLabel")
             layout.addRow(label, widget)
         else:
             layout.addRow(widget)
 
     def style_input_widget(self, widget) -> None:
         """Apply modern styling to input widgets."""
-        widget.setStyleSheet("""
-            QLineEdit, QComboBox, QSpinBox, QTextEdit {
-                border: 1px solid #ced4da;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 14px;
-                background-color: white;
-                color: #495057;
-                selection-background-color: #667eea;
-                selection-color: white;
-            }
-            QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QTextEdit:focus {
-                border-color: #667eea;
-                outline: none;
-                background-color: #ffffff;
-            }
-            /* Improved ComboBox styling */
-            QComboBox {
-                padding-right: 20px;
-                min-height: 18px;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: top right;
-                width: 20px;
-                border-left-width: 1px;
-                border-left-color: #ced4da;
-                border-left-style: solid;
-                border-top-right-radius: 6px;
-                border-bottom-right-radius: 6px;
-                background-color: #f8f9fa;
-            }
-            QComboBox::drop-down:hover {
-                background-color: #e9ecef;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-style: solid;
-                border-width: 4px 4px 0px 4px;
-                border-color: #6c757d transparent transparent transparent;
-                width: 0px;
-                height: 0px;
-            }
-            QComboBox::down-arrow:hover {
-                border-top-color: #495057;
-            }
-            /* ComboBox dropdown list styling */
-            QComboBox QAbstractItemView {
-                border: 1px solid #ced4da;
-                border-radius: 6px;
-                background-color: white;
-                selection-background-color: #667eea;
-                selection-color: white;
-                outline: none;
-                padding: 4px;
-            }
-            QComboBox QAbstractItemView::item {
-                padding: 8px 12px;
-                border: none;
-                color: #495057;
-                min-height: 20px;
-            }
-            QComboBox QAbstractItemView::item:selected {
-                background-color: #667eea;
-                color: white;
-                border-radius: 4px;
-            }
-            QComboBox QAbstractItemView::item:hover {
-                background-color: #e9ecef;
-                color: #495057;
-                border-radius: 4px;
-            }
-            /* SpinBox button styling */
-            QSpinBox::up-button, QSpinBox::down-button {
-                subcontrol-origin: border;
-                width: 16px;
-                border: none;
-                background-color: #f8f9fa;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background-color: #e9ecef;
-            }
-            QSpinBox::up-arrow {
-                image: none;
-                border-style: solid;
-                border-width: 0px 4px 4px 4px;
-                border-color: transparent transparent #6c757d transparent;
-                width: 0px;
-                height: 0px;
-            }
-            QSpinBox::down-arrow {
-                image: none;
-                border-style: solid;
-                border-width: 4px 4px 0px 4px;
-                border-color: #6c757d transparent transparent transparent;
-                width: 0px;
-                height: 0px;
-            }
-            /* TextEdit scrollbar styling */
-            QTextEdit QScrollBar:vertical {
-                background-color: #f8f9fa;
-                width: 12px;
-                border-radius: 6px;
-                border: none;
-            }
-            QTextEdit QScrollBar::handle:vertical {
-                background-color: #ced4da;
-                border-radius: 6px;
-                margin: 2px;
-                min-height: 20px;
-            }
-            QTextEdit QScrollBar::handle:vertical:hover {
-                background-color: #adb5bd;
-            }
-            QTextEdit QScrollBar::handle:vertical:pressed {
-                background-color: #6c757d;
-            }
-            QTextEdit QScrollBar::add-line:vertical, QTextEdit QScrollBar::sub-line:vertical {
-                border: none;
-                background: none;
-            }
-        """)
-
-        # Apply additional global scrollbar styling to the widget
-        if hasattr(widget, 'setVerticalScrollBarPolicy'):
-            widget.setStyleSheet(widget.styleSheet() + """
-                /* Global scrollbar for any scrollable widget */
-                QScrollBar:vertical {
-                    background-color: #f8f9fa;
-                    width: 12px;
-                    border-radius: 6px;
-                    border: none;
-                }
-                QScrollBar::handle:vertical {
-                    background-color: #ced4da;
-                    border-radius: 6px;
-                    margin: 2px;
-                    min-height: 20px;
-                }
-                QScrollBar::handle:vertical:hover {
-                    background-color: #adb5bd;
-                }
-                QScrollBar::handle:vertical:pressed {
-                    background-color: #6c757d;
-                }
-                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                    border: none;
-                    background: none;
-                }
-            """)
+        widget.setObjectName("InputWidget")
 
     def style_checkbox(self, checkbox: QCheckBox) -> None:
         """Apply modern styling to checkboxes."""
-        checkbox.setStyleSheet("""
-            QCheckBox {
-                spacing: 8px;
-                font-size: 14px;
-                color: #495057;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border: 2px solid #ced4da;
-                border-radius: 4px;
-                background-color: white;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #667eea;
-                border-color: #667eea;
-            }
-            QCheckBox::indicator:checked:hover {
-                background-color: #5a6fd8;
-                border-color: #5a6fd8;
-            }
-        """)
+        checkbox.setObjectName("SettingsCheckBox")
 
     def style_slider(self, slider: QSlider) -> None:
         """Apply modern styling to sliders."""
-        slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                border: 1px solid #ced4da;
-                height: 6px;
-                background: #e9ecef;
-                border-radius: 3px;
-            }
-            QSlider::handle:horizontal {
-                background: #667eea;
-                border: 2px solid #667eea;
-                width: 18px;
-                height: 18px;
-                margin: -7px 0;
-                border-radius: 9px;
-            }
-            QSlider::handle:horizontal:hover {
-                background: #5a6fd8;
-                border-color: #5a6fd8;
-            }
-        """)
+        slider.setObjectName("SettingsSlider")
 
     # Rest of the implementation methods (load_current_settings, save_settings, etc.)
     # These would be similar to the attachment but adapted for the modern UI
@@ -1204,7 +737,7 @@ class SettingsDialog(QDialog):
 
         # Show success message briefly
         self.model_loading_label.setText("✓ Models updated")
-        self.model_loading_label.setStyleSheet("color: #28a745; font-size: 12px;")
+        self.model_loading_label.setObjectName("SuccessLabel")
         self.model_loading_label.show()
 
         # Hide success message after 2 seconds
@@ -1213,13 +746,13 @@ class SettingsDialog(QDialog):
     def on_model_fetch_error(self, error_message: str) -> None:
         """Handle model fetching error."""
         self.model_loading_label.setText("⚠ Failed to load models")
-        self.model_loading_label.setStyleSheet("color: #dc3545; font-size: 12px;")
+        self.model_loading_label.setObjectName("ErrorLabel")
         self.refresh_models_btn.setEnabled(True)
 
         # Hide error message after 3 seconds
         QTimer.singleShot(3000, lambda: (
             self.model_loading_label.hide(),
-            self.model_loading_label.setStyleSheet("color: #6c757d; font-size: 12px;")
+            self.model_loading_label.setObjectName("LoadingLabel")
         ))
 
     def get_selected_model_name(self) -> str:
