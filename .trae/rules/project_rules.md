@@ -1,1 +1,1 @@
-When making python tests, store them in /tests folder
+Python test files should be placed in the `/tests` directory.
